@@ -84,7 +84,6 @@ func (s *store) search(term string) []searchResult {
 func (s *store) add(doc document) {
 	id := len(s.documents)
 	s.documents[id] = doc
-
 	s.index.addDoc(doc, id)
 }
 
@@ -97,14 +96,14 @@ type documentRef struct {
 
 type documentRefs []documentRef
 
-func (d documentRefs) findRefForDoc(id int) *documentRef {
-	for _, ref := range d {
+func (d documentRefs) findRefForDoc(id int) (*int, *documentRef) {
+	for i, ref := range d {
 		if ref.id == id {
-			return &ref
+			return &i, &ref
 		}
 	}
 
-	return nil
+	return nil, nil
 }
 
 type index struct {
@@ -116,10 +115,11 @@ func (i *index) addDoc(doc document, id int) {
 		for _, term := range strings.Split(value, " ") {
 			t := strings.ToLower(term)
 			refs := i.terms[t]
-			ref := refs.findRefForDoc(id)
+			docRefPos, ref := refs.findRefForDoc(id)
 
 			if ref != nil {
 				ref.fields = append(ref.fields, field)
+				i.terms[t][*docRefPos] = *ref
 			} else {
 				newRef := documentRef{id: id, fields: []string{field}}
 				i.terms[t] = append(refs, newRef)

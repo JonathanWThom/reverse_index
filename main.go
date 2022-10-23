@@ -85,20 +85,7 @@ func (s *store) add(doc document) {
 	id := len(s.documents)
 	s.documents[id] = doc
 
-	for field, value := range doc {
-		for _, term := range strings.Split(value, " ") {
-			t := strings.ToLower(term)
-			refs := s.index.terms[t]
-			ref := refs.findRefForDoc(id)
-
-			if ref != nil {
-				ref.fields = append(ref.fields, field)
-			} else {
-				newRef := documentRef{id: id, fields: []string{field}}
-				s.index.terms[t] = append(refs, newRef)
-			}
-		}
-	}
+	s.index.addDoc(doc, id)
 }
 
 type document map[string]string // could change to interface{}
@@ -122,6 +109,23 @@ func (d documentRefs) findRefForDoc(id int) *documentRef {
 
 type index struct {
 	terms map[string]documentRefs
+}
+
+func (i *index) addDoc(doc document, id int) {
+	for field, value := range doc {
+		for _, term := range strings.Split(value, " ") {
+			t := strings.ToLower(term)
+			refs := i.terms[t]
+			ref := refs.findRefForDoc(id)
+
+			if ref != nil {
+				ref.fields = append(ref.fields, field)
+			} else {
+				newRef := documentRef{id: id, fields: []string{field}}
+				i.terms[t] = append(refs, newRef)
+			}
+		}
+	}
 }
 
 type searchResult struct {

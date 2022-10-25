@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -37,8 +38,16 @@ func main() {
 		"city":    "Mars",
 		"tagline": "Love 2 mess with Bugs on Mars",
 	}
-	fmt.Printf("Adding document: %#v\n\n", d4)
+	fmt.Printf("Adding document: %#v\n", d4)
 	s.add(d4)
+
+	d5 := document{
+		"name":    "Bugs Bunny",
+		"city":    "Albuquerque",
+		"tagline": "I'm Bugs Bunny",
+	}
+	fmt.Printf("Adding document: %#v\n\n", d5)
+	s.add(d5)
 
 	fmt.Println("Searching for term 'good'...")
 	result1 := s.search("good")
@@ -54,7 +63,11 @@ func main() {
 
 	fmt.Println("Searching for term 'mars'...")
 	result4 := s.search("mars")
-	fmt.Printf("%s\n", result4)
+	fmt.Printf("%s\n\n", result4)
+
+	fmt.Println("Searching for term 'bugs'...")
+	result5 := s.search("bugs")
+	fmt.Printf("%s\n", result5)
 }
 
 func newStore() store {
@@ -76,8 +89,16 @@ func (s *store) search(term string) []searchResult {
 		res = append(res, searchResult{document: doc, fields: ref.fields})
 	}
 
+	sort.Sort(ByFieldCount(res))
+
 	return res
 }
+
+type ByFieldCount []searchResult
+
+func (s ByFieldCount) Len() int           { return len(s) }
+func (s ByFieldCount) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s ByFieldCount) Less(i, j int) bool { return len(s[i].fields) > len(s[j].fields) }
 
 func (s *store) add(doc document) {
 	id := len(s.documents)
@@ -85,7 +106,7 @@ func (s *store) add(doc document) {
 	s.index.addDoc(doc, id)
 }
 
-type document map[string]string // could change to interface{}
+type document map[string]string
 
 type documentRef struct {
 	id     int

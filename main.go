@@ -5,8 +5,6 @@ import (
 	"strings"
 )
 
-// Note to self: Not working correctly when matching on mutliple fields
-
 func main() {
 	s := newStore()
 

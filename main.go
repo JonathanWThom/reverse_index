@@ -1,153 +1,41 @@
 package main
 
 import (
-	"fmt"
-	"sort"
-	"strings"
+	"encoding/json"
+	"log"
+	"net/http"
+
+	"github.com/jonathanwthom/reverse_index/store"
 )
 
+var s store.Store
+
 func main() {
-	s := newStore()
+	s = store.NewStore()
 
-	d1 := document{
-		"name":    "Jonathan",
-		"city":    "Ellensburg",
-		"tagline": "Here's to feeling good all the time",
-	}
-	fmt.Printf("Adding document: %#v\n", d1)
-	s.add(d1)
+	http.HandleFunc("/add", add)
+	http.HandleFunc("/search", search)
 
-	d2 := document{
-		"name":    "Jerry",
-		"city":    "New York",
-		"tagline": "What's the deal with time",
-	}
-	fmt.Printf("Adding document: %#v\n", d2)
-	s.add(d2)
-
-	d3 := document{
-		"name":    "Kramer",
-		"city":    "New York",
-		"tagline": "These pretzels are making me thirsty",
-	}
-	fmt.Printf("Adding document: %#v\n", d3)
-	s.add(d3)
-
-	d4 := document{
-		"name":    "Marvin Martian",
-		"city":    "Mars",
-		"tagline": "Love 2 mess with Bugs on Mars",
-	}
-	fmt.Printf("Adding document: %#v\n", d4)
-	s.add(d4)
-
-	d5 := document{
-		"name":    "Bugs Bunny",
-		"city":    "Albuquerque",
-		"tagline": "I'm Bugs Bunny",
-	}
-	fmt.Printf("Adding document: %#v\n\n", d5)
-	s.add(d5)
-
-	fmt.Println("Searching for term 'good'...")
-	result1 := s.search("good")
-	fmt.Printf("%s\n\n", result1)
-
-	fmt.Println("Searching for term 'new'...")
-	result2 := s.search("new")
-	fmt.Printf("%s\n\n", result2)
-
-	fmt.Println("Searching for term 'Time'...")
-	result3 := s.search("Time")
-	fmt.Printf("%s\n\n", result3)
-
-	fmt.Println("Searching for term 'mars'...")
-	result4 := s.search("mars")
-	fmt.Printf("%s\n\n", result4)
-
-	fmt.Println("Searching for term 'bugs'...")
-	result5 := s.search("bugs")
-	fmt.Printf("%s\n", result5)
+	log.Fatal(http.ListenAndServe(":3333", nil))
 }
 
-func newStore() store {
-	return store{
-		documents: map[int]document{},
-		index:     index{terms: map[string]documentRefs{}},
+func add(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
-}
-
-type store struct {
-	documents map[int]document
-	index     index
-}
-
-func (s *store) search(term string) []searchResult {
-	res := []searchResult{}
-	for _, ref := range s.index.terms[strings.ToLower(term)] {
-		doc := s.documents[ref.id]
-		res = append(res, searchResult{document: doc, fields: ref.fields})
+	document := store.Document{}
+	for k, v := range r.Form {
+		document[k] = v[0]
 	}
 
-	sort.Sort(ByFieldCount(res))
-
-	return res
+	s.Add(document)
+	w.WriteHeader(http.StatusCreated)
 }
 
-type ByFieldCount []searchResult
-
-func (s ByFieldCount) Len() int           { return len(s) }
-func (s ByFieldCount) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s ByFieldCount) Less(i, j int) bool { return len(s[i].fields) > len(s[j].fields) }
-
-func (s *store) add(doc document) {
-	id := len(s.documents)
-	s.documents[id] = doc
-	s.index.addDoc(doc, id)
-}
-
-type document map[string]string
-
-type documentRef struct {
-	id     int
-	fields []string
-}
-
-type documentRefs []documentRef
-
-func (d documentRefs) findRefForDoc(id int) (*int, *documentRef) {
-	for i, ref := range d {
-		if ref.id == id {
-			return &i, &ref
-		}
-	}
-
-	return nil, nil
-}
-
-type index struct {
-	terms map[string]documentRefs
-}
-
-func (i *index) addDoc(doc document, id int) {
-	for field, value := range doc {
-		for _, term := range strings.Split(value, " ") {
-			t := strings.ToLower(term)
-			refs := i.terms[t]
-			docRefPos, ref := refs.findRefForDoc(id)
-
-			if ref != nil {
-				ref.fields = append(ref.fields, field)
-				i.terms[t][*docRefPos] = *ref
-			} else {
-				newRef := documentRef{id: id, fields: []string{field}}
-				i.terms[t] = append(refs, newRef)
-			}
-		}
-	}
-}
-
-type searchResult struct {
-	document document
-	fields   []string
+func search(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+	res := s.Search(query)
+	json.NewEncoder(w).Encode(res)
 }

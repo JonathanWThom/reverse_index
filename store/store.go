@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"encoding/gob"
+	"errors"
 	"log"
 	"os"
 	"sort"
@@ -13,6 +14,17 @@ func NewStore() Store {
 	// handle file not existing
 	// this is inelegant, probably could get io.Reader from the get go
 	data, err := os.ReadFile("data")
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return Store{
+				Documents: map[int]Document{},
+				Index:     index{Terms: map[string]documentRefs{}},
+			}
+		} else {
+			log.Fatal(err)
+		}
+	}
+
 	r := bytes.NewReader(data)
 	dec := gob.NewDecoder(r) // Will read from network.
 	var store Store

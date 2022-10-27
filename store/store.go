@@ -26,7 +26,7 @@ func NewStore() Store {
 	}
 
 	r := bytes.NewReader(data)
-	dec := gob.NewDecoder(r) // Will read from network.
+	dec := gob.NewDecoder(r)
 	var store Store
 	err = dec.Decode(&store)
 	if err != nil {
